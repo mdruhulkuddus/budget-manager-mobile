@@ -1,0 +1,51 @@
+import { formatTaka, groupDigits, toBengaliDigits } from '../src/lib/format';
+
+describe('toBengaliDigits', () => {
+  it('maps every ASCII digit', () => {
+    expect(toBengaliDigits('0123456789')).toBe('০১২৩৪৫৬৭৮৯');
+  });
+
+  it('leaves non-digits alone', () => {
+    expect(toBengaliDigits('2026-10-27 ৳,')).toBe('২০২৬-১০-২৭ ৳,');
+  });
+
+  it('accepts numbers', () => {
+    expect(toBengaliDigits(42)).toBe('৪২');
+  });
+});
+
+describe('groupDigits', () => {
+  it.each([
+    [0, '0'],
+    [999, '999'],
+    [1000, '1,000'],
+    [28500, '28,500'],
+    [100000, '1,00,000'],
+    [1234567, '12,34,567'],
+    [123456789, '12,34,56,789'],
+  ])('%p → %s', (n, expected) => {
+    expect(groupDigits(n)).toBe(expected);
+  });
+});
+
+describe('formatTaka', () => {
+  it('formats with taka sign, Bengali digits and separators', () => {
+    expect(formatTaka(28500)).toBe('৳২৮,৫০০');
+  });
+
+  it('uses lakh grouping', () => {
+    expect(formatTaka(125000)).toBe('৳১,২৫,০০০');
+  });
+
+  it('formats zero', () => {
+    expect(formatTaka(0)).toBe('৳০');
+  });
+
+  it('puts a leading minus on negatives', () => {
+    expect(formatTaka(-1200)).toBe('-৳১,২০০');
+  });
+
+  it('does not show -0', () => {
+    expect(formatTaka(-0.2)).toBe('৳০');
+  });
+});
