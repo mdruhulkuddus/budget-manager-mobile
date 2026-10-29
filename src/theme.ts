@@ -1,3 +1,5 @@
+import type { BarStatus } from './lib/calc';
+
 export const colors = {
   background: '#F6F7F9',
   surface: '#FFFFFF',
@@ -9,7 +11,20 @@ export const colors = {
   ok: '#22A35A',
   warn: '#E5A400',
   over: '#D93A3A',
+  overSoft: '#FDECEC',
+  done: '#22A35A',
+  progress: '#208AEF',
+  track: '#E9ECF0',
 } as const;
+
+/** Bar / label color per status: expense ok·warn·over, saving progress·done. */
+export const statusColor: Record<BarStatus, string> = {
+  ok: colors.ok,
+  warn: colors.warn,
+  over: colors.over,
+  progress: colors.progress,
+  done: colors.done,
+};
 
 export const spacing = {
   xs: 4,

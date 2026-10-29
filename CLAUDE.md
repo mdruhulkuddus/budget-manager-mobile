@@ -124,7 +124,7 @@ Rules:
 - **Dates** are local calendar dates and always come from `src/lib/date.ts` (`today()`, `monthRange()`). Never use `toISOString()` for a date: it's UTC, and in Bangladesh (UTC+6) it gives yesterday's date between 00:00 and 06:00.
 - **`formatTaka`** uses South Asian (lakh) grouping: `৳১,২৫,০০০`. Negatives: `-৳১,২০০`.
 - **`percent`** is `Infinity` when planned = 0 and spent > 0. It sorts first and is `'over'`; the UI must display it specially (e.g. "—"). Sort ties fall back to `sort_order`.
-- **Archived categories:** `buildMonthSummary` receives *all* categories and shows an archived one only if it has planned > 0 or spent > 0 that month. Pickers and the plan screen should use `categories.listActive`.
+- **Month summary rows** (`buildMonthSummary`): it receives *all* categories (archived included, so their spending still counts) and hides any row with planned = 0 and spent = 0. It returns separate `expenseRows` (sorted by % desc, ties by `sort_order`) and `savingRows` (by `sort_order`). Saving rows use `SavingStatus` (`'progress'` / `'done'` at ≥ 100%) and are never red. A no-plan expense row with spending is `'over'` with `hasPlan: false` ("প্ল্যান নেই"). Pickers and the plan screen use `categories.listActive`.
 - **A month "has a plan"** if it has any income or any planned amount > 0 (`months.hasPlan`). Opening a month in the switcher creates an empty `months` row, so row existence means nothing. The month list (session 5) should keep that in mind.
 - **Copy from last month:** the source is `months.getPreviousWithPlan` (most recent earlier month *with a plan*, skipping empty ones). `months.copyPlanFromMonth` runs `budgets.copyFromMonth` + `incomes.copyFromMonth` in one exclusive transaction. Both *replace* the target's data. Budget rows of archived categories are neither copied nor deleted.
 - **Plan screen totals** (`planSummary`) count only active categories, matching the visible rows. Amounts commit on blur and skip the write if unchanged. `parseTaka` turns invalid input (decimals, minus, letters) into 0.
@@ -136,6 +136,8 @@ Rules:
   - In edit mode `amountToExclude` removes the original amount from "spent", but only while the category and month are unchanged.
   - "সেভ করে আরেকটা" exists only in add mode. The edit screen has ডিলিট instead.
   - An archived category is shown in the edit form only if it is the expense's own.
+- **Dashboard** always shows the current calendar month via `src/db/dashboard.ts` → `getMonthSummary` (fixed number of queries, none per row). Its "recent" list is the current month's last 5, so "সব দেখুন" (that month's report) matches it. With no plan, the overall bar is replaced by the "প্ল্যান করুন" card.
+- **Status colors** live in `statusColor` in `src/theme.ts` (keyed by `BarStatus` = expense + saving statuses). Use it instead of per-component maps.
 - **Shared UI helpers:** `showError` (Alert for unexpected DB errors; validation stays inline) and `dateLabel` (আজ / গতকাল / "২৫ অক্টোবর") in `src/components/`.
 - **Expense notes:** an empty or whitespace-only note is stored as `NULL`.
 - **Navigation:** `settings` is reached through a "সেটিংস" header link on the tabs. `expense/new` is presented as a modal.
@@ -188,7 +190,6 @@ saving: ব্যাংক জমা
 1. ✅ Project setup, DB + migrations + seed, repositories, calc/format/date libs + tests, tab skeleton
 2. ✅ Budget plan screen (incomes, planned amounts, copy from last month)
 3. ✅ Add/edit/delete expense
-   (The dashboard currently shows only a temporary "সাম্প্রতিক খরচ" list + FAB, marked `TODO(session-4)`.)
-4. Dashboard with overall + per-category progress bars
+4. ✅ Dashboard with overall + per-category progress bars
 5. Month list + month report
 6. Settings: category management + JSON backup/restore; EAS APK build

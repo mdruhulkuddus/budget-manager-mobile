@@ -8,10 +8,10 @@ import * as categories from '../db/categories';
 import * as expenses from '../db/expenses';
 import * as months from '../db/months';
 import { bn } from '../i18n/bn';
-import { amountToExclude, categoryPreview, type Status } from '../lib/calc';
+import { amountToExclude, categoryPreview } from '../lib/calc';
 import { addDays, monthRange, parseLocalDate, toLocalDate, today, yearMonthOf } from '../lib/date';
 import { formatTaka, parseTaka } from '../lib/format';
-import { colors, fontSize, spacing } from '../theme';
+import { colors, fontSize, spacing, statusColor } from '../theme';
 import { dateLabel } from './dateLabel';
 import { showError } from './showError';
 import { useKeyboardInset } from './useKeyboardInset';
@@ -28,8 +28,6 @@ interface MonthStats {
   planned: Map<number, number>;
   spent: Map<number, number>;
 }
-
-const STATUS_COLOR: Record<Status, string> = { ok: colors.ok, warn: colors.warn, over: colors.over };
 
 function Chip({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
   return (
@@ -181,7 +179,7 @@ export function ExpenseForm({ original, onDone }: Props) {
               {bn.preview.afterThisOver}: {formatTaka(p.overBy)} {bn.preview.over}
             </Text>
           ) : (
-            <Text style={[styles.previewAfter, { color: STATUS_COLOR[p.status] }]}>
+            <Text style={[styles.previewAfter, { color: statusColor[p.status] }]}>
               {bn.preview.afterThis}: {formatTaka(p.remainingAfter)}
             </Text>
           ))}

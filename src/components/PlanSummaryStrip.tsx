@@ -54,7 +54,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     backgroundColor: colors.background,
   },
-  unplannedOver: { backgroundColor: '#FDECEC' },
+  unplannedOver: { backgroundColor: colors.overSoft },
   unplannedLabel: { fontSize: fontSize.md, color: colors.text, fontWeight: '600' },
   unplannedAmount: { fontSize: fontSize.lg, color: colors.text, fontWeight: '700' },
   overText: { color: colors.over },
