@@ -92,3 +92,17 @@ export function addMonths(ym: YearMonth, delta: number): YearMonth {
 export function currentYearMonth(now: Date = new Date()): YearMonth {
   return { year: now.getFullYear(), month: now.getMonth() + 1 };
 }
+
+/** Whole days from `from` to `to` (both 'YYYY-MM-DD'); negative if `to` is earlier. */
+export function daysBetween(from: string, to: string): number {
+  return Math.round((parseLocalDate(to).getTime() - parseLocalDate(from).getTime()) / 86_400_000);
+}
+
+/** Local time with its UTC offset, e.g. '2026-10-29T21:15:04+06:00'. Its first 10 chars are the local date. */
+export function localTimestamp(now: Date = new Date()): string {
+  const offset = -now.getTimezoneOffset();
+  const sign = offset >= 0 ? '+' : '-';
+  const abs = Math.abs(offset);
+  const time = `${pad2(now.getHours())}:${pad2(now.getMinutes())}:${pad2(now.getSeconds())}`;
+  return `${toLocalDate(now)}T${time}${sign}${pad2(Math.floor(abs / 60))}:${pad2(abs % 60)}`;
+}

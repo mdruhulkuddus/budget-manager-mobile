@@ -2,8 +2,10 @@ import {
   addDays,
   addMonths,
   currentYearMonth,
+  daysBetween,
   daysLeftInMonth,
   groupByDate,
+  localTimestamp,
   monthRange,
   today,
   yearMonthOf,
@@ -116,5 +118,24 @@ describe('daysLeftInMonth', () => {
     ['2026-09-29', 1],
   ])('%s → %p', (date, expected) => {
     expect(daysLeftInMonth(date)).toBe(expected);
+  });
+});
+
+describe('daysBetween', () => {
+  it('counts whole days across months and years', () => {
+    expect(daysBetween('2026-10-29', '2026-10-29')).toBe(0);
+    expect(daysBetween('2026-09-29', '2026-10-29')).toBe(30);
+    expect(daysBetween('2025-12-31', '2026-01-01')).toBe(1);
+    expect(daysBetween('2026-10-29', '2026-10-28')).toBe(-1);
+  });
+});
+
+describe('localTimestamp', () => {
+  it('starts with the local date and ends with a UTC offset', () => {
+    const now = new Date(2026, 9, 29, 0, 30, 5);
+    const ts = localTimestamp(now);
+    expect(ts.slice(0, 19)).toBe('2026-10-29T00:30:05');
+    expect(ts).toMatch(/[+-]\d{2}:\d{2}$/);
+    expect(ts.slice(0, 10)).toBe(today(now));
   });
 });

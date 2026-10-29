@@ -6,9 +6,12 @@
     "@react-native-community/datetimepicker": "9.2.1",
     "expo": "~58.0.19",
     "expo-constants": "~58.0.13",
+    "expo-document-picker": "~58.0.4",
+    "expo-file-system": "~58.0.13",
     "expo-font": "~58.0.10",
     "expo-linking": "~58.0.14",
     "expo-router": "~58.0.26",
+    "expo-sharing": "~58.0.21",
     "expo-splash-screen": "~58.0.11",
     "expo-sqlite": "~58.0.14",
     "expo-status-bar": "~58.0.4",
@@ -33,11 +36,15 @@
   "scripts": {
     "start": "expo start",
     "android": "expo start --android",
-    "test": "jest",
+    "test": "node --experimental-sqlite --disable-warning=ExperimentalWarning node_modules/jest/bin/jest.js",
     "typecheck": "tsc --noEmit"
   },
   "jest": {
-    "preset": "jest-expo"
+    "preset": "jest-expo",
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "/__tests__/helpers/"
+    ]
   },
   "private": true
 }

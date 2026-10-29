@@ -54,3 +54,13 @@ export const SEED_CATEGORIES: { name: string; type: 'expense' | 'saving' }[] = [
   { name: 'অন্যান্য', type: 'expense' },
   { name: 'ব্যাংক জমা', type: 'saving' },
 ];
+
+export const SCHEMA_V2 = `
+CREATE TABLE app_settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
+`;
+
+/** Latest migration version; also written into backup files. */
+export const SCHEMA_VERSION = 2;
