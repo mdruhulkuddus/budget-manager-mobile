@@ -6,6 +6,11 @@ export function toBengaliDigits(input: string | number): string {
   return String(input).replace(/[0-9]/g, (d) => BENGALI_DIGITS[Number(d)]);
 }
 
+/** 81.6 → "৮২%". Callers handle Infinity (no plan) themselves. */
+export function formatPercent(percent: number): string {
+  return `${toBengaliDigits(Math.round(percent))}%`;
+}
+
 export function fromBengaliDigits(input: string): string {
   return input.replace(/[০-৯]/g, (d) => String(BENGALI_DIGITS.indexOf(d)));
 }

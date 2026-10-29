@@ -32,14 +32,38 @@ export interface Progress {
   status: Status;
 }
 
-export interface CategorySummary extends Progress {
+/** Saving more than planned is good, so savings never go 'over'. */
+export type SavingStatus = 'progress' | 'done';
+export type BarStatus = Status | SavingStatus;
+
+interface CategoryRowBase {
   categoryId: number;
   name: string;
-  type: CategoryType;
+  planned: number;
+  spent: number;
+  remaining: number;
+  /** spent / planned × 100. Infinity when planned = 0 and spent > 0. */
+  percent: number;
+  hasPlan: boolean;
 }
 
+export interface ExpenseRow extends CategoryRowBase {
+  type: 'expense';
+  status: Status;
+}
+
+export interface SavingRow extends CategoryRowBase {
+  type: 'saving';
+  status: SavingStatus;
+}
+
+export type CategoryRow = ExpenseRow | SavingRow;
+
 export interface MonthSummary {
-  categories: CategorySummary[];
+  /** Sorted by percent desc (over budget first), ties by sort order. */
+  expenseRows: ExpenseRow[];
+  /** Sorted by sort order. */
+  savingRows: SavingRow[];
   totals: {
     income: number;
     expense: number;
@@ -48,10 +72,15 @@ export interface MonthSummary {
   };
   /** Planned vs spent over 'expense' categories only. */
   overall: Progress;
+  /** Any category has a planned amount > 0 this month. */
+  hasPlan: boolean;
 }
 
 export interface MonthSummaryInput {
-  /** All categories, archived included; archived ones are shown only if they have data. */
+  /**
+   * All categories, archived included, so spending in a since-archived category still counts.
+   * Rows with planned = 0 and spent = 0 are hidden either way.
+   */
   categories: CalcCategory[];
   budgets: PlannedInput[];
   spent: SpentInput[];
@@ -154,6 +183,12 @@ export function planSummary(input: PlanSummaryInput): PlanSummary {
   return { income, plannedExpense, plannedSaving, unplanned, isOverPlanned: unplanned < 0 };
 }
 
+export function savingStatusOf(planned: number, spent: number): SavingStatus {
+  return planned > 0 && spent >= planned ? 'done' : 'progress';
+}
+
+const bySortOrder = (a: CalcCategory, b: CalcCategory) => a.sortOrder - b.sortOrder || a.id - b.id;
+
 export function buildMonthSummary(input: MonthSummaryInput): MonthSummary {
   const plannedById = new Map<number, number>();
   for (const b of input.budgets) plannedById.set(b.categoryId, b.plannedAmount);
@@ -161,31 +196,32 @@ export function buildMonthSummary(input: MonthSummaryInput): MonthSummary {
   const spentById = new Map<number, number>();
   for (const s of input.spent) spentById.set(s.categoryId, (spentById.get(s.categoryId) ?? 0) + s.spent);
 
-  const rows = input.categories
-    .map((c) => {
-      const planned = plannedById.get(c.id) ?? 0;
-      const spent = spentById.get(c.id) ?? 0;
-      return { category: c, summary: { categoryId: c.id, name: c.name, type: c.type, ...progress(planned, spent) } };
-    })
-    .filter(({ category, summary }) => !category.isArchived || summary.planned > 0 || summary.spent > 0)
-    .sort(
-      (a, b) =>
-        b.summary.percent - a.summary.percent ||
-        a.category.sortOrder - b.category.sortOrder ||
-        a.category.id - b.category.id,
-    )
-    .map(({ summary }) => summary);
+  const expenseRows: { category: CalcCategory; row: ExpenseRow }[] = [];
+  const savingRows: { category: CalcCategory; row: SavingRow }[] = [];
 
-  const expenseRows = rows.filter((r) => r.type === 'expense');
-  const savingRows = rows.filter((r) => r.type === 'saving');
+  for (const c of input.categories) {
+    const planned = plannedById.get(c.id) ?? 0;
+    const spent = spentById.get(c.id) ?? 0;
+    if (planned === 0 && spent === 0) continue;
+    const p = progress(planned, spent);
+    const base = { categoryId: c.id, name: c.name, planned, spent, remaining: p.remaining, percent: p.percent, hasPlan: planned > 0 };
+    if (c.type === 'expense') expenseRows.push({ category: c, row: { ...base, type: 'expense', status: p.status } });
+    else savingRows.push({ category: c, row: { ...base, type: 'saving', status: savingStatusOf(planned, spent) } });
+  }
+
+  // Infinity − Infinity is NaN (falsy), so two unplanned rows fall through to sort order.
+  expenseRows.sort((a, b) => b.row.percent - a.row.percent || bySortOrder(a.category, b.category));
+  savingRows.sort((a, b) => bySortOrder(a.category, b.category));
 
   const income = sumBy(input.incomes, (i) => i.amount);
-  const expense = sumBy(expenseRows, (r) => r.spent);
-  const saving = sumBy(savingRows, (r) => r.spent);
+  const expense = sumBy(expenseRows, (r) => r.row.spent);
+  const saving = sumBy(savingRows, (r) => r.row.spent);
 
   return {
-    categories: rows,
+    expenseRows: expenseRows.map((r) => r.row),
+    savingRows: savingRows.map((r) => r.row),
     totals: { income, expense, saving, inHand: income - expense - saving },
-    overall: progress(sumBy(expenseRows, (r) => r.planned), expense),
+    overall: progress(sumBy(expenseRows, (r) => r.row.planned), expense),
+    hasPlan: input.budgets.some((b) => b.plannedAmount > 0),
   };
 }

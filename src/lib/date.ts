@@ -52,6 +52,12 @@ export function today(now: Date = new Date()): string {
   return toLocalDate(now);
 }
 
+/** Days after `date` until the end of its month; 0 on the last day. */
+export function daysLeftInMonth(date: string): number {
+  const { year, month } = yearMonthOf(date);
+  return daysInMonth(year, month) - Number(date.slice(8, 10));
+}
+
 export function addDays(date: string, delta: number): string {
   const d = parseLocalDate(date);
   d.setDate(d.getDate() + delta);

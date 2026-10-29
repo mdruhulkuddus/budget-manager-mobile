@@ -1,4 +1,4 @@
-import { formatTaka, groupDigits, parseTaka, toBengaliDigits } from '../src/lib/format';
+import { formatPercent, formatTaka, groupDigits, parseTaka, toBengaliDigits } from '../src/lib/format';
 
 describe('toBengaliDigits', () => {
   it('maps every ASCII digit', () => {
@@ -73,5 +73,17 @@ describe('parseTaka', () => {
 
   it('round-trips formatTaka', () => {
     expect(parseTaka(formatTaka(1234567))).toBe(1234567);
+  });
+});
+
+describe('formatPercent', () => {
+  it.each([
+    [0, '০%'],
+    [81.4, '৮১%'],
+    [86.5, '৮৭%'],
+    [100, '১০০%'],
+    [125, '১২৫%'],
+  ])('%p → %s', (percent, expected) => {
+    expect(formatPercent(percent)).toBe(expected);
   });
 });

@@ -1,4 +1,13 @@
-import { addDays, addMonths, currentYearMonth, groupByDate, monthRange, today, yearMonthOf } from '../src/lib/date';
+import {
+  addDays,
+  addMonths,
+  currentYearMonth,
+  daysLeftInMonth,
+  groupByDate,
+  monthRange,
+  today,
+  yearMonthOf,
+} from '../src/lib/date';
 
 describe('monthRange', () => {
   it('February in a leap year', () => {
@@ -94,5 +103,18 @@ describe('groupByDate', () => {
 
   it('returns no groups for no items', () => {
     expect(groupByDate([])).toEqual([]);
+  });
+});
+
+describe('daysLeftInMonth', () => {
+  it.each([
+    ['2026-10-28', 3],
+    ['2026-10-31', 0],
+    ['2026-10-01', 30],
+    ['2026-02-28', 0],
+    ['2024-02-28', 1],
+    ['2026-09-29', 1],
+  ])('%s → %p', (date, expected) => {
+    expect(daysLeftInMonth(date)).toBe(expected);
   });
 });

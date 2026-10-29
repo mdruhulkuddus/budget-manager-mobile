@@ -6,6 +6,7 @@ import {
   MonthSummaryInput,
   percentOf,
   planSummary,
+  savingStatusOf,
   statusOf,
 } from '../src/lib/calc';
 
@@ -45,12 +46,14 @@ function input(overrides: Partial<MonthSummaryInput> = {}): MonthSummaryInput {
   };
 }
 
-const byId = (s: ReturnType<typeof buildMonthSummary>, id: number) => s.categories.find((c) => c.categoryId === id)!;
+type Summary = ReturnType<typeof buildMonthSummary>;
+const allRows = (s: Summary) => [...s.expenseRows, ...s.savingRows];
+const byId = (s: Summary, id: number) => allRows(s).find((c) => c.categoryId === id)!;
 
 describe('buildMonthSummary', () => {
   it('computes planned, spent, remaining and percent per category', () => {
     const groceries = byId(buildMonthSummary(input()), 2);
-    expect(groceries).toMatchObject({ planned: 8000, spent: 4000, remaining: 4000, percent: 50, status: 'ok' });
+    expect(groceries).toMatchObject({ planned: 8000, spent: 4000, remaining: 4000, percent: 50, status: 'ok', hasPlan: true });
   });
 
   it('reports overspent categories with negative remaining', () => {
@@ -58,14 +61,19 @@ describe('buildMonthSummary', () => {
     expect(transport).toMatchObject({ remaining: -500, percent: 125, status: 'over' });
   });
 
-  it('treats planned = 0 with spending as over', () => {
+  it('shows a no-plan expense row with spending as over, hasPlan false', () => {
     const s = buildMonthSummary(input({ budgets: [], spent: [{ categoryId: 2, spent: 300 }] }));
-    expect(byId(s, 2)).toMatchObject({ planned: 0, spent: 300, remaining: -300, percent: Infinity, status: 'over' });
+    expect(byId(s, 2)).toMatchObject({ planned: 0, spent: 300, remaining: -300, percent: Infinity, status: 'over', hasPlan: false });
   });
 
-  it('treats planned = 0 with no spending as 0% ok', () => {
-    const s = buildMonthSummary(input({ budgets: [], spent: [] }));
-    expect(byId(s, 1)).toMatchObject({ planned: 0, spent: 0, percent: 0, status: 'ok' });
+  it('hides rows with planned = 0 and spent = 0', () => {
+    const s = buildMonthSummary(input({ budgets: [{ categoryId: 1, plannedAmount: 100 }], spent: [{ categoryId: 2, spent: 50 }] }));
+    expect(allRows(s).map((r) => r.categoryId).sort()).toEqual([1, 2]);
+  });
+
+  it('keeps a planned row with no spending yet', () => {
+    const s = buildMonthSummary(input({ spent: [] }));
+    expect(byId(s, 1)).toMatchObject({ planned: 15000, spent: 0, percent: 0, status: 'ok' });
   });
 
   it('excludes saving categories from the overall bar', () => {
@@ -83,31 +91,98 @@ describe('buildMonthSummary', () => {
     expect(totals.inHand).toBe(-16500);
   });
 
-  it('sorts categories by percent desc, ties by sort order', () => {
+  it('splits rows by type', () => {
     const s = buildMonthSummary(input());
-    // transport 125%, rent 100%, bank 100%, groceries 50%
-    expect(s.categories.map((c) => c.categoryId)).toEqual([3, 1, 4, 2]);
+    expect(s.expenseRows.every((r) => r.type === 'expense')).toBe(true);
+    expect(s.savingRows.map((r) => r.categoryId)).toEqual([4]);
   });
 
-  it('puts unplanned spending (Infinity) first', () => {
+  it('sorts expense rows by percent desc, ties by sort order', () => {
     const s = buildMonthSummary(
-      input({ budgets: [{ categoryId: 1, plannedAmount: 100 }], spent: [{ categoryId: 1, spent: 500 }, { categoryId: 2, spent: 1 }] }),
+      input({
+        spent: [
+          { categoryId: 1, spent: 15000 },
+          { categoryId: 2, spent: 8000 },
+          { categoryId: 3, spent: 2500 },
+        ],
+      }),
     );
-    expect(s.categories[0].categoryId).toBe(2);
+    // transport 125%, rent 100%, groceries 100% (rent first by sort order)
+    expect(s.expenseRows.map((c) => c.categoryId)).toEqual([3, 1, 2]);
   });
 
-  it('hides archived categories unless they have data', () => {
+  it('puts unplanned spending (Infinity) first, two unplanned rows by sort order', () => {
+    const s = buildMonthSummary(
+      input({
+        budgets: [{ categoryId: 1, plannedAmount: 100 }],
+        spent: [
+          { categoryId: 1, spent: 500 },
+          { categoryId: 3, spent: 1 },
+          { categoryId: 2, spent: 1 },
+        ],
+      }),
+    );
+    expect(s.expenseRows.map((c) => c.categoryId)).toEqual([2, 3, 1]);
+  });
+
+  it('sorts saving rows by sort order, not percent', () => {
+    const cats = [...categories, cat(5, 'dps', 'saving', { sortOrder: 0 })];
+    const s = buildMonthSummary(
+      input({
+        categories: cats,
+        budgets: [
+          { categoryId: 4, plannedAmount: 100 },
+          { categoryId: 5, plannedAmount: 100 },
+        ],
+        spent: [
+          { categoryId: 4, spent: 100 },
+          { categoryId: 5, spent: 10 },
+        ],
+      }),
+    );
+    expect(s.savingRows.map((r) => r.categoryId)).toEqual([5, 4]);
+  });
+
+  it('counts spending in an archived category and shows its row', () => {
     const withArchived = [...categories, cat(5, 'old', 'expense', { isArchived: true }), cat(6, 'old2', 'expense', { isArchived: true })];
     const s = buildMonthSummary(input({ categories: withArchived, spent: [...input().spent, { categoryId: 6, spent: 100 }] }));
-    const ids = s.categories.map((c) => c.categoryId);
+    const ids = allRows(s).map((c) => c.categoryId);
     expect(ids).not.toContain(5);
     expect(ids).toContain(6);
+    expect(s.totals.expense).toBe(21600);
+  });
+
+  it('reports hasPlan only when some planned amount > 0', () => {
+    expect(buildMonthSummary(input()).hasPlan).toBe(true);
+    expect(buildMonthSummary(input({ budgets: [{ categoryId: 1, plannedAmount: 0 }] })).hasPlan).toBe(false);
+    expect(buildMonthSummary(input({ budgets: [] })).hasPlan).toBe(false);
   });
 
   it('handles an empty month', () => {
     const s = buildMonthSummary(input({ budgets: [], spent: [], incomes: [] }));
     expect(s.totals).toEqual({ income: 0, expense: 0, saving: 0, inHand: 0 });
     expect(s.overall).toMatchObject({ planned: 0, spent: 0, percent: 0, status: 'ok' });
+    expect(allRows(s)).toEqual([]);
+  });
+});
+
+describe('saving status', () => {
+  const saving = (planned: number, spent: number) =>
+    buildMonthSummary(input({ budgets: [{ categoryId: 4, plannedAmount: planned }], spent: [{ categoryId: 4, spent }] }))
+      .savingRows[0];
+
+  it.each([
+    [10000, 0, 'progress'],
+    [10000, 9999, 'progress'],
+    [10000, 10000, 'done'],
+    [10000, 25000, 'done'], // saving more than planned is never red
+  ])('planned %p, saved %p → %s', (planned, spent, status) => {
+    expect(savingStatusOf(planned, spent)).toBe(status);
+    expect(saving(planned, spent).status).toBe(status);
+  });
+
+  it('a saving without a plan is progress, not done or over', () => {
+    expect(saving(0, 500)).toMatchObject({ status: 'progress', hasPlan: false });
   });
 });
 
