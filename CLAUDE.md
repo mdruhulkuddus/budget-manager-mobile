@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 # Budget Mobile — Project Context
 
 Personal, offline-only Android app for monthly budget planning and expense tracking.
-Single user (the owner), runs on his own phone (Xiaomi Redmi Note 11). No backend, no login, no sync.
+Single user (the owner), runs on his own phone (Samsung Galaxy M21). No backend, no login, no sync.
 
 ## Goal
 
