@@ -225,3 +225,73 @@ export function buildMonthSummary(input: MonthSummaryInput): MonthSummary {
     hasPlan: input.budgets.some((b) => b.plannedAmount > 0),
   };
 }
+
+export type Verdict =
+  | { kind: 'under'; amount: number }
+  | { kind: 'onPlan' }
+  | { kind: 'over'; amount: number }
+  | { kind: 'noPlan' };
+
+/** Spent vs the expense plan (savings excluded, like the overall bar). */
+export function monthVerdict(summary: Pick<MonthSummary, 'overall'>): Verdict {
+  const { planned, remaining } = summary.overall;
+  if (planned === 0) return { kind: 'noPlan' };
+  if (remaining > 0) return { kind: 'under', amount: remaining };
+  if (remaining < 0) return { kind: 'over', amount: -remaining };
+  return { kind: 'onPlan' };
+}
+
+export interface ReportRow {
+  categoryId: number;
+  name: string;
+  planned: number;
+  spent: number;
+  /** planned − spent: positive = left over, negative = over plan. */
+  difference: number;
+  /** spent as % of the group's total spent (0 when the group total is 0). */
+  share: number;
+}
+
+/** Rows for a report table, sorted by spent desc (ties keep the summary's order). */
+export function reportRows(rows: CategoryRow[]): ReportRow[] {
+  const total = sumBy(rows, (r) => r.spent);
+  return [...rows]
+    .sort((a, b) => b.spent - a.spent)
+    .map((r) => ({
+      categoryId: r.categoryId,
+      name: r.name,
+      planned: r.planned,
+      spent: r.spent,
+      difference: r.planned - r.spent,
+      share: total > 0 ? (r.spent / total) * 100 : 0,
+    }));
+}
+
+/** Per-month aggregates as returned by months.listWithTotals. */
+export interface MonthTotals {
+  id: number;
+  year: number;
+  month: number;
+  plannedExpense: number;
+  /** Sum of all planned amounts (expense + saving). */
+  plannedTotal: number;
+  spentExpense: number;
+  spentSaving: number;
+  incomeCount: number;
+  expenseCount: number;
+}
+
+export interface MonthListItem extends MonthTotals {
+  /** Spent more than the expense plan. False when there is no expense plan. */
+  isOver: boolean;
+}
+
+/**
+ * Drops months with no data at all (rows created just by browsing in the plan tab):
+ * no income, no planned amount > 0 and no expense. Keeps the input order.
+ */
+export function buildMonthList(rows: MonthTotals[]): MonthListItem[] {
+  return rows
+    .filter((r) => r.incomeCount > 0 || r.plannedTotal > 0 || r.expenseCount > 0)
+    .map((r) => ({ ...r, isOver: r.plannedExpense > 0 && r.spentExpense > r.plannedExpense }));
+}

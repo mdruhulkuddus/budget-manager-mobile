@@ -6,6 +6,18 @@ export function toBengaliDigits(input: string | number): string {
   return String(input).replace(/[0-9]/g, (d) => BENGALI_DIGITS[Number(d)]);
 }
 
+/** For tables: no ৳ sign. 20000 → "২০,০০০", -300 → "−৩০০". */
+export function formatAmount(n: number): string {
+  const rounded = Math.round(n);
+  return `${rounded < 0 ? '−' : ''}${toBengaliDigits(groupDigits(rounded))}`;
+}
+
+/** A difference with an explicit sign: 800 → "+৮০০", -300 → "−৩০০", 0 → "০". */
+export function formatSigned(n: number): string {
+  const rounded = Math.round(n);
+  return rounded > 0 ? `+${formatAmount(rounded)}` : formatAmount(rounded);
+}
+
 /** 81.6 → "৮২%". Callers handle Infinity (no plan) themselves. */
 export function formatPercent(percent: number): string {
   return `${toBengaliDigits(Math.round(percent))}%`;

@@ -1,11 +1,15 @@
 import {
   amountToExclude,
+  buildMonthList,
   buildMonthSummary,
   CalcCategory,
   categoryPreview,
   MonthSummaryInput,
+  type MonthTotals,
+  monthVerdict,
   percentOf,
   planSummary,
+  reportRows,
   savingStatusOf,
   statusOf,
 } from '../src/lib/calc';
@@ -324,5 +328,97 @@ describe('amountToExclude', () => {
 
   it('does not exclude in add mode', () => {
     expect(amountToExclude(null, 2, '2026-10-05')).toBe(0);
+  });
+});
+
+describe('monthVerdict', () => {
+  const verdictFor = (planned: number, spent: number) =>
+    monthVerdict(buildMonthSummary(input({ budgets: [{ categoryId: 1, plannedAmount: planned }], spent: [{ categoryId: 1, spent }] })));
+
+  it('under plan → amount saved', () => {
+    expect(verdictFor(35000, 28500)).toEqual({ kind: 'under', amount: 6500 });
+  });
+
+  it('exactly on plan', () => {
+    expect(verdictFor(35000, 35000)).toEqual({ kind: 'onPlan' });
+  });
+
+  it('over plan → amount over', () => {
+    expect(verdictFor(35000, 37000)).toEqual({ kind: 'over', amount: 2000 });
+  });
+
+  it('no expense plan', () => {
+    expect(verdictFor(0, 500)).toEqual({ kind: 'noPlan' });
+    expect(monthVerdict(buildMonthSummary(input({ budgets: [], spent: [] })))).toEqual({ kind: 'noPlan' });
+  });
+
+  it('ignores savings: only a saving plan still counts as no plan', () => {
+    const s = buildMonthSummary(input({ budgets: [{ categoryId: 4, plannedAmount: 5000 }], spent: [] }));
+    expect(monthVerdict(s)).toEqual({ kind: 'noPlan' });
+  });
+});
+
+describe('reportRows', () => {
+  const s = buildMonthSummary(input()); // rent 15000/15000, groceries 4000/8000, transport 2500/2000
+  const rows = reportRows(s.expenseRows);
+
+  it('sorts by spent desc', () => {
+    expect(rows.map((r) => r.categoryId)).toEqual([1, 2, 3]);
+  });
+
+  it('difference = planned − spent: positive saved, negative over, zero on plan', () => {
+    expect(rows.map((r) => r.difference)).toEqual([0, 4000, -500]);
+  });
+
+  it('share is % of the group total and adds up to 100', () => {
+    const total = 15000 + 4000 + 2500;
+    expect(rows[1].share).toBeCloseTo((4000 / total) * 100);
+    expect(rows.reduce((acc, r) => acc + r.share, 0)).toBeCloseTo(100);
+  });
+
+  it('share is 0 when nothing was spent', () => {
+    const planned = buildMonthSummary(input({ spent: [] }));
+    expect(reportRows(planned.expenseRows).every((r) => r.share === 0)).toBe(true);
+  });
+
+  it('has no rows for categories with planned and spent both 0', () => {
+    const sparse = buildMonthSummary(input({ budgets: [{ categoryId: 1, plannedAmount: 100 }], spent: [] }));
+    expect(reportRows(sparse.expenseRows).map((r) => r.categoryId)).toEqual([1]);
+  });
+});
+
+describe('buildMonthList', () => {
+  const totals = (id: number, extra: Partial<MonthTotals> = {}): MonthTotals => ({
+    id,
+    year: 2026,
+    month: id,
+    plannedExpense: 0,
+    plannedTotal: 0,
+    spentExpense: 0,
+    spentSaving: 0,
+    incomeCount: 0,
+    expenseCount: 0,
+    ...extra,
+  });
+
+  it('excludes empty months and keeps any month with income, plan or expenses (in input order)', () => {
+    const list = buildMonthList([
+      totals(12), // empty: created by browsing
+      totals(11, { incomeCount: 1 }),
+      totals(10, { plannedTotal: 500 }),
+      totals(9, { expenseCount: 2, spentExpense: 100 }),
+      totals(8, { plannedTotal: 0, incomeCount: 0, expenseCount: 0 }),
+    ]);
+    expect(list.map((m) => m.id)).toEqual([11, 10, 9]);
+  });
+
+  it('marks months spent over the expense plan', () => {
+    const [within, exact, over, noPlan] = buildMonthList([
+      totals(1, { plannedExpense: 1000, plannedTotal: 1000, spentExpense: 900, expenseCount: 1 }),
+      totals(2, { plannedExpense: 1000, plannedTotal: 1000, spentExpense: 1000, expenseCount: 1 }),
+      totals(3, { plannedExpense: 1000, plannedTotal: 1000, spentExpense: 1001, expenseCount: 1 }),
+      totals(4, { spentExpense: 500, expenseCount: 1 }),
+    ]);
+    expect([within.isOver, exact.isOver, over.isOver, noPlan.isOver]).toEqual([false, false, true, false]);
   });
 });

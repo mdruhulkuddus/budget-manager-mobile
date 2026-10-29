@@ -1,4 +1,4 @@
-import { formatPercent, formatTaka, groupDigits, parseTaka, toBengaliDigits } from '../src/lib/format';
+import { formatAmount, formatPercent, formatSigned, formatTaka, groupDigits, parseTaka, toBengaliDigits } from '../src/lib/format';
 
 describe('toBengaliDigits', () => {
   it('maps every ASCII digit', () => {
@@ -85,5 +85,22 @@ describe('formatPercent', () => {
     [125, '১২৫%'],
   ])('%p → %s', (percent, expected) => {
     expect(formatPercent(percent)).toBe(expected);
+  });
+});
+
+describe('formatAmount / formatSigned', () => {
+  it('formats table amounts without ৳', () => {
+    expect(formatAmount(20000)).toBe('২০,০০০');
+    expect(formatAmount(-300)).toBe('−৩০০');
+  });
+
+  it.each([
+    [800, '+৮০০'],
+    [-300, '−৩০০'],
+    [0, '০'],
+    [6500, '+৬,৫০০'],
+    [-125000, '−১,২৫,০০০'],
+  ])('signed %p → %s', (n, expected) => {
+    expect(formatSigned(n)).toBe(expected);
   });
 });
