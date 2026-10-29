@@ -11,16 +11,23 @@ interface Props {
   expenses: Expense[];
   categoryNames: Map<number, string>;
   onPress: (expense: Expense) => void;
+  /** Show each date's total in its header (default true). Totals follow the filter. */
+  showDayTotals?: boolean;
+  /** Show only this category's expenses; null/undefined = all. */
+  filterCategoryId?: number | null;
 }
 
-export function ExpenseList({ expenses, categoryNames, onPress }: Props) {
+export function ExpenseList({ expenses, categoryNames, onPress, showDayTotals = true, filterCategoryId }: Props) {
+  const visible = filterCategoryId == null ? expenses : expenses.filter((e) => e.categoryId === filterCategoryId);
   return (
     <View style={styles.list}>
-      {groupByDate(expenses).map((group) => (
+      {groupByDate(visible).map((group) => (
         <View key={group.date}>
           <View style={styles.groupHeader}>
             <Text style={styles.groupDate}>{dateLabel(group.date)}</Text>
-            <Text style={styles.groupTotal}>{formatTaka(group.items.reduce((sum, e) => sum + e.amount, 0))}</Text>
+            {showDayTotals && (
+              <Text style={styles.groupTotal}>{formatTaka(group.items.reduce((sum, e) => sum + e.amount, 0))}</Text>
+            )}
           </View>
           {group.items.map((e) => (
             <Pressable key={e.id} style={styles.row} onPress={() => onPress(e)}>

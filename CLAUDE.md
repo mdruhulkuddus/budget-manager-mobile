@@ -136,7 +136,9 @@ Rules:
   - In edit mode `amountToExclude` removes the original amount from "spent", but only while the category and month are unchanged.
   - "সেভ করে আরেকটা" exists only in add mode. The edit screen has ডিলিট instead.
   - An archived category is shown in the edit form only if it is the expense's own.
-- **Dashboard** always shows the current calendar month via `src/db/dashboard.ts` → `getMonthSummary` (fixed number of queries, none per row). Its "recent" list is the current month's last 5, so "সব দেখুন" (that month's report) matches it. With no plan, the overall bar is replaced by the "প্ল্যান করুন" card.
+- **Dashboard & report share one loader:** `loadMonthData(db, month, expenseLimit?)` in `src/db/dashboard.ts`. The dashboard (`getMonthSummary`, always the current calendar month, last 5 expenses) and the report (`src/db/report.ts` → `getMonthReport(monthId)`, all expenses) both build on it, so their numbers always match. Its "recent" list is the current month's last 5, so "সব দেখুন" (that month's report) matches it. With no plan, the dashboard's overall bar is replaced by the "প্ল্যান করুন" card.
+- **Month list:** `months.listWithTotals` is one query (each table aggregated once via CTEs, joined to `months`) returning every month row. `calc.buildMonthList` then drops months with no income, no planned amount > 0 and no expense. Keep the filtering in that pure function so it stays unit-tested.
+- **Report:** `monthVerdict` compares against the *expense* plan only. A month with only a saving plan reads "no plan". Report tables (`reportRows`) sort by spent desc. `share` is % of the group's total. Saving differences are never red. Table amounts use `formatAmount` / `formatSigned` (no ৳, `−` U+2212 for negatives).
 - **Status colors** live in `statusColor` in `src/theme.ts` (keyed by `BarStatus` = expense + saving statuses). Use it instead of per-component maps.
 - **Shared UI helpers:** `showError` (Alert for unexpected DB errors; validation stays inline) and `dateLabel` (আজ / গতকাল / "২৫ অক্টোবর") in `src/components/`.
 - **Expense notes:** an empty or whitespace-only note is stored as `NULL`.
@@ -191,5 +193,5 @@ saving: ব্যাংক জমা
 2. ✅ Budget plan screen (incomes, planned amounts, copy from last month)
 3. ✅ Add/edit/delete expense
 4. ✅ Dashboard with overall + per-category progress bars
-5. Month list + month report
+5. ✅ Month list + month report
 6. Settings: category management + JSON backup/restore; EAS APK build
