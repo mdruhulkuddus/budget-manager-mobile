@@ -23,6 +23,7 @@ export default function TabLayout() {
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textMuted,
         tabBarIcon: () => null,
+        tabBarHideOnKeyboard: true,
         tabBarLabelStyle: { fontSize: fontSize.md },
       }}>
       <Tabs.Screen name="index" options={{ title: bn.tabs.dashboard }} />

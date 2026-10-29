@@ -124,7 +124,11 @@ Rules:
 - **`formatTaka`** uses South Asian (lakh) grouping: `৳১,২৫,০০০`. Negatives: `-৳১,২০০`.
 - **`percent`** is `Infinity` when planned = 0 and spent > 0. It sorts first and is `'over'`; the UI must display it specially (e.g. "—"). Sort ties fall back to `sort_order`.
 - **Archived categories:** `buildMonthSummary` receives *all* categories and shows an archived one only if it has planned > 0 or spent > 0 that month. Pickers and the plan screen should use `categories.listActive`.
-- **`months.getPrevious`** returns the most recent *existing* earlier month, not strictly the previous calendar month. **`budgets.copyFromMonth`** overwrites the target's amounts and skips archived categories.
+- **A month "has a plan"** if it has any income or any planned amount > 0 (`months.hasPlan`). Opening a month in the switcher creates an empty `months` row, so row existence means nothing. The month list (session 5) should keep that in mind.
+- **Copy from last month:** the source is `months.getPreviousWithPlan` (most recent earlier month *with a plan*, skipping empty ones). `months.copyPlanFromMonth` runs `budgets.copyFromMonth` + `incomes.copyFromMonth` in one exclusive transaction. Both *replace* the target's data. Budget rows of archived categories are neither copied nor deleted.
+- **Plan screen totals** (`planSummary`) count only active categories, matching the visible rows. Amounts commit on blur and skip the write if unchanged. `parseTaka` turns invalid input (decimals, minus, letters) into 0.
+- **Keyboard:** `KeyboardAvoidingView` isn't used: Android edge-to-edge (mandatory since SDK 54) makes it unreliable. Scroll screens with inputs use `src/components/useKeyboardAwareScroll.ts` (bottom padding = keyboard height + scroll the focused input into view). They keep the default `keyboardShouldPersistTaps`, so the first tap outside an input only dismisses the keyboard. That commits the input before any button acts.
+- **RN 0.88 types:** components are function types. Use `ScrollViewInstance` / `TextInputInstance` for refs, not `ScrollView` / `TextInput`.
 - **Expense notes:** an empty or whitespace-only note is stored as `NULL`.
 - **Navigation:** `settings` is reached through a "সেটিংস" header link on the tabs. `expense/new` is presented as a modal.
 
@@ -175,7 +179,7 @@ saving: ব্যাংক জমা
 
 1. ✅ Project setup, DB + migrations + seed, repositories, calc/format/date libs + tests, tab skeleton
    (The dashboard placeholder has a temporary seeded-category count marked `TODO(session-4): remove`.)
-2. Budget plan screen (incomes, planned amounts, copy from last month)
+2. ✅ Budget plan screen (incomes, planned amounts, copy from last month)
 3. Add/edit/delete expense
 4. Dashboard with overall + per-category progress bars
 5. Month list + month report
