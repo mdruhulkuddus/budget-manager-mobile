@@ -11,3 +11,9 @@ export function dateLabel(date: string, todayDate: string = today()): string {
   const sameYear = year === yearMonthOf(todayDate).year;
   return `${toBengaliDigits(day)} ${bn.monthNames[month - 1]}${sameYear ? '' : ` ${toBengaliDigits(year)}`}`;
 }
+
+/** Always with the year: "২৯ অক্টোবর ২০২৬". */
+export function fullDateLabel(date: string): string {
+  const { year, month } = yearMonthOf(date);
+  return `${toBengaliDigits(Number(date.slice(8, 10)))} ${bn.monthNames[month - 1]} ${toBengaliDigits(year)}`;
+}
