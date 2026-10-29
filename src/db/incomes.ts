@@ -31,3 +31,17 @@ export async function update(db: SQLiteDatabase, id: number, input: { source: st
 export async function remove(db: SQLiteDatabase, id: number): Promise<void> {
   await db.runAsync('DELETE FROM incomes WHERE id = ?', id);
 }
+
+/**
+ * Replaces all of the target month's incomes with copies of the source month's.
+ * Not transactional by itself — use months.copyPlanFromMonth.
+ */
+export async function copyFromMonth(db: SQLiteDatabase, fromMonthId: number, toMonthId: number): Promise<void> {
+  await db.runAsync('DELETE FROM incomes WHERE month_id = ?', toMonthId);
+  await db.runAsync(
+    `INSERT INTO incomes (month_id, source, amount)
+     SELECT ?, source, amount FROM incomes WHERE month_id = ? ORDER BY id`,
+    toMonthId,
+    fromMonthId,
+  );
+}

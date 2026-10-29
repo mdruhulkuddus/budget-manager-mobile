@@ -26,10 +26,16 @@ export async function upsert(db: SQLiteDatabase, monthId: number, categoryId: nu
 }
 
 /**
- * Copies planned amounts of active categories from one month to another,
- * overwriting the target's values for those categories.
+ * Replaces the target month's planned amounts for active categories with the source month's.
+ * Budget rows of archived categories are left untouched in both months.
+ * Not transactional by itself — callers pair it with incomes.copyFromMonth via months.copyPlanFromMonth.
  */
 export async function copyFromMonth(db: SQLiteDatabase, fromMonthId: number, toMonthId: number): Promise<void> {
+  await db.runAsync(
+    `DELETE FROM budgets
+      WHERE month_id = ? AND category_id IN (SELECT id FROM categories WHERE is_archived = 0)`,
+    toMonthId,
+  );
   await db.runAsync(
     `INSERT INTO budgets (month_id, category_id, planned_amount)
      SELECT ?, b.category_id, b.planned_amount
