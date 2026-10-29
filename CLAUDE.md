@@ -30,6 +30,7 @@ Keep it minimal. Do not add features that are not listed here.
 - Plain `StyleSheet` — no UI library, no chart library, no icon library (tab bar is labels only)
 - Jest (`jest-expo`) for unit tests of pure logic
 - `@react-native-community/datetimepicker`: date picker for expenses (approved in session 3). Use the imperative `DateTimePickerAndroid.open()`.
+- `expo-file-system` (new `File` / `Paths` API), `expo-sharing`, `expo-document-picker`: backup/restore (approved in session 6). `expo-constants` (already part of Expo) gives the app version.
 - Build: EAS Build, `preview` profile → installable APK
 
 Do NOT add: Redux/Zustand, TanStack Query, UI kits, chart libs, ORMs, auth, network calls.
@@ -41,7 +42,8 @@ SDK 58 is newer than most training data — check the installed type definitions
 
 - `npx expo start` — dev server (open in Expo Go / dev build on the phone)
 - `npx tsc --noEmit` — type-check
-- `npx jest` — all tests; `npx jest __tests__/calc.test.ts` — one file; `npx jest -t "remaining"` — by test name
+- `npm test` — all tests. It runs Jest under `node --experimental-sqlite` so the database tests can use Node's built-in SQLite. Pass Jest args after `--`: `npm test -- __tests__/calc.test.ts` (one file), `npm test -- -t "remaining"` (by test name).
+- `npx jest` works too, but on Node < 22.13 (this machine has 22.12) it **skips** the database suites with a warning.
 - `npx expo export --platform android --output-dir <tmp>` — full Android bundle; use it to catch route/import errors when the phone isn't available
 - `npx expo-doctor` — dependency/config check
 - `eas build -p android --profile preview` — installable APK
@@ -90,6 +92,12 @@ expenses (
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 )
 CREATE INDEX idx_expenses_date ON expenses(date);
+
+-- v2
+app_settings (
+  key TEXT PRIMARY KEY,        -- 'last_backup_at'
+  value TEXT NOT NULL
+)
 ```
 
 Rules:
@@ -114,8 +122,9 @@ Rules:
 
 ## Architecture (how the layers connect)
 
-- **DB lifecycle:** `app/_layout.tsx` wraps everything in `<SQLiteProvider databaseName="budget.db" onInit={migrate}>`. `migrate()` in `src/db/migrations.ts` runs on every start. It sets `foreign_keys = ON` and WAL mode *outside* any transaction (SQLite ignores `foreign_keys` inside one), then applies each entry in `MIGRATIONS` whose version is above `PRAGMA user_version`, in its own transaction. To change the schema, append a new migration. Never edit a shipped one. `src/db/schema.ts` holds only the v1 SQL and the seed list.
+- **DB lifecycle:** `app/_layout.tsx` wraps everything in `<SQLiteProvider databaseName="budget.db" onInit={migrate}>`. `migrate()` in `src/db/migrations.ts` runs on every start. It sets `foreign_keys = ON` and WAL mode *outside* any transaction (SQLite ignores `foreign_keys` inside one), then applies each entry in `MIGRATIONS` whose version is above `PRAGMA user_version`, in its own transaction. To change the schema, append a new migration. Never edit a shipped one. `src/db/schema.ts` holds the SQL of each version, the seed list and `SCHEMA_VERSION` (= last migration; a module-level check enforces it). `migrate(db, targetVersion?)` can stop at an older version, for tests.
 - **Repositories** (`src/db/*.ts`) are plain async functions that take `db: SQLiteDatabase` as the first argument. Components get `db` from `useSQLiteContext()` and pass it in. SQL aliases columns to camelCase (`planned_amount AS plannedAmount`), so row types are camelCase. `is_archived` is mapped to a boolean.
+- **Repository tests** (`__tests__/db.test.ts`) run the real repositories and migrations against `node:sqlite` through `__tests__/helpers/nodeDb.ts`, an adapter for the subset of expo-sqlite's async API we use (`execAsync`, `runAsync`, `getFirstAsync`, `getAllAsync`, `withTransactionAsync`, `withExclusiveTransactionAsync`). If a repository starts using another expo-sqlite method, add it there. Use `describeDb` / `openTestDb(version?)`.
 - **Months ↔ expenses:** expenses have no `month_id`. A month's expenses are fetched by date range: `monthRange(year, month)` → `expenses.listByDateRange` / `sumByCategory(from, to)`. Incomes and budgets *do* reference `months.id`, created via `months.getOrCreate`.
 - **Summary pipeline:** screen → repositories (`categories.listAll`, `budgets.listByMonth`, `expenses.sumByCategory`, `incomes.listByMonth`) → `buildMonthSummary()` in `src/lib/calc.ts` → render. The repository return shapes match calc's input types directly (`SpentInput` is reused by `sumByCategory`).
 
@@ -140,9 +149,19 @@ Rules:
 - **Month list:** `months.listWithTotals` is one query (each table aggregated once via CTEs, joined to `months`) returning every month row. `calc.buildMonthList` then drops months with no income, no planned amount > 0 and no expense. Keep the filtering in that pure function so it stays unit-tested.
 - **Report:** `monthVerdict` compares against the *expense* plan only. A month with only a saving plan reads "no plan". Report tables (`reportRows`) sort by spent desc. `share` is % of the group's total. Saving differences are never red. Table amounts use `formatAmount` / `formatSigned` (no ৳, `−` U+2212 for negatives).
 - **Status colors** live in `statusColor` in `src/theme.ts` (keyed by `BarStatus` = expense + saving statuses). Use it instead of per-component maps.
-- **Shared UI helpers:** `showError` (Alert for unexpected DB errors; validation stays inline) and `dateLabel` (আজ / গতকাল / "২৫ অক্টোবর") in `src/components/`.
+- **Shared UI helpers:** `showError` (Alert for unexpected DB errors; validation stays inline), `dateLabel` (আজ / গতকাল / "২৫ অক্টোবর") and `fullDateLabel` ("২৯ অক্টোবর ২০২৬") in `src/components/`.
 - **Expense notes:** an empty or whitespace-only note is stored as `NULL`.
-- **Navigation:** `settings` is reached through a "সেটিংস" header link on the tabs. `expense/new` is presented as a modal.
+- **Category management** (settings): rules are pure functions in `src/lib/categories.ts`.
+  - Names are normalized (trimmed, inner spaces collapsed). Duplicates are checked case-insensitively against *active* categories only. Restoring an archived category whose name is now taken is refused.
+  - **"Used"** = any expense, or any budget row with planned > 0 (`isCategoryUsed`). Budget rows saved as 0 don't count, and `categories.remove` deletes them along with the category. Used categories can only be archived; `remove` and `setType` re-check inside their transaction and throw `CategoryInUseError`.
+  - ▲/▼ swaps with the neighbouring *active* category of the same type (`moveCategory`), then rewrites `sort_order` for all categories. New categories go to the end.
+- **Backup:** pure format and validation in `src/lib/backup.ts`, DB side in `src/db/backup.ts`, file and share-sheet I/O in `src/components/backupActions.ts`.
+  - The JSON uses camelCase row fields; `isArchived` is a boolean. `app_settings` is not included (it's device state).
+  - `parseBackup` checks everything the DB enforces (types, CHECKs, UNIQUEs, foreign keys) and copies only known fields. A file that passes always restores.
+  - Restore (`replaceAll`) deletes and re-inserts every table with the original ids in one exclusive transaction.
+  - `schemaVersion` ≤ `SCHEMA_VERSION` is accepted. If a future migration changes these tables, `parseBackup` must upgrade older files.
+  - `last_backup_at` is a local timestamp with offset (`localTimestamp()`). It's written when the share sheet closes, because Android doesn't report whether the file was saved. It shows red when never set or older than 30 days.
+- **Navigation:** `settings` is reached through a ⚙ text glyph in the dashboard header (no icon library). `expense/new` is presented as a modal.
 
 ## Screens
 
@@ -178,7 +197,7 @@ __tests__/           Jest tests
 
 - Business logic stays out of components — in `src/lib` or `src/db` repositories.
 - Every repository function is async and typed; no raw SQL inside components.
-- Run `npx tsc --noEmit` and `npx jest` before declaring a session done.
+- Run `npx tsc --noEmit` and `npm test` before declaring a session done.
 - Small commits per feature with clear English messages.
 - If a requirement is unclear, ask instead of guessing.
 
@@ -194,4 +213,4 @@ saving: ব্যাংক জমা
 3. ✅ Add/edit/delete expense
 4. ✅ Dashboard with overall + per-category progress bars
 5. ✅ Month list + month report
-6. Settings: category management + JSON backup/restore; EAS APK build
+6. ✅ Settings: category management + JSON backup/restore; EAS APK build (`eas.json` preview profile → APK; see README)
