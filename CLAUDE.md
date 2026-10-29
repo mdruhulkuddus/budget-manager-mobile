@@ -23,22 +23,29 @@ Keep it minimal. Do not add features that are not listed here.
 
 ## Tech stack
 
-- Expo (latest SDK) + React Native + TypeScript (strict)
-- expo-router (file-based routing, bottom tabs)
+- Expo **SDK 58** (React Native 0.88, React 19.3) + TypeScript 6 (strict)
+- expo-router (file-based routing; routes live in root `app/`, not `src/app/`)
+  - Tabs: `import { Tabs } from 'expo-router/js-tabs'` (`Tabs` from `expo-router` is deprecated). Stack: `import { Stack } from 'expo-router'`.
 - expo-sqlite (async API, `SQLiteProvider` + `useSQLiteContext`)
-- Plain `StyleSheet` — no UI library, no chart library
+- Plain `StyleSheet` — no UI library, no chart library, no icon library (tab bar is labels only)
 - Jest (`jest-expo`) for unit tests of pure logic
 - Build: EAS Build, `preview` profile → installable APK
 
 Do NOT add: Redux/Zustand, TanStack Query, UI kits, chart libs, ORMs, auth, network calls.
-Ask before adding any dependency not listed above.
+Ask before adding any dependency not listed above. When adding one, use `npx expo install <pkg>` (picks SDK-compatible versions), never plain `npm install`.
+
+SDK 58 is newer than most training data — check the installed type definitions in `node_modules` (or the docs at `https://docs.expo.dev/versions/v58.0.0/`) instead of assuming an API from memory.
 
 ## Commands
 
 - `npx expo start` — dev server (open in Expo Go / dev build on the phone)
 - `npx tsc --noEmit` — type-check
 - `npx jest` — all tests; `npx jest __tests__/calc.test.ts` — one file; `npx jest -t "remaining"` — by test name
+- `npx expo export --platform android --output-dir <tmp>` — full Android bundle; use it to catch route/import errors when the phone isn't available
+- `npx expo-doctor` — dependency/config check
 - `eas build -p android --profile preview` — installable APK
+
+TypeScript 6 no longer loads `@types/*` automatically: `tsconfig.json` lists `"types": ["jest"]`. Add to that list if another global type package is needed.
 
 ## Data model (SQLite)
 
@@ -104,6 +111,23 @@ Rules:
 - **Overall bar** = planned vs spent over `expense` categories only (savings excluded)
 - Bar color: ≤ 80% green, 80–100% yellow, > 100% red
 
+## Architecture (how the layers connect)
+
+- **DB lifecycle:** `app/_layout.tsx` wraps everything in `<SQLiteProvider databaseName="budget.db" onInit={migrate}>`. `migrate()` in `src/db/migrations.ts` runs on every start. It sets `foreign_keys = ON` and WAL mode *outside* any transaction (SQLite ignores `foreign_keys` inside one), then applies each entry in `MIGRATIONS` whose version is above `PRAGMA user_version`, in its own transaction. To change the schema, append a new migration. Never edit a shipped one. `src/db/schema.ts` holds only the v1 SQL and the seed list.
+- **Repositories** (`src/db/*.ts`) are plain async functions that take `db: SQLiteDatabase` as the first argument. Components get `db` from `useSQLiteContext()` and pass it in. SQL aliases columns to camelCase (`planned_amount AS plannedAmount`), so row types are camelCase. `is_archived` is mapped to a boolean.
+- **Months ↔ expenses:** expenses have no `month_id`. A month's expenses are fetched by date range: `monthRange(year, month)` → `expenses.listByDateRange` / `sumByCategory(from, to)`. Incomes and budgets *do* reference `months.id`, created via `months.getOrCreate`.
+- **Summary pipeline:** screen → repositories (`categories.listAll`, `budgets.listByMonth`, `expenses.sumByCategory`, `incomes.listByMonth`) → `buildMonthSummary()` in `src/lib/calc.ts` → render. The repository return shapes match calc's input types directly (`SpentInput` is reused by `sumByCategory`).
+
+## Behaviour decisions (settled in session 1)
+
+- **Dates** are local calendar dates and always come from `src/lib/date.ts` (`today()`, `monthRange()`). Never use `toISOString()` for a date: it's UTC, and in Bangladesh (UTC+6) it gives yesterday's date between 00:00 and 06:00.
+- **`formatTaka`** uses South Asian (lakh) grouping: `৳১,২৫,০০০`. Negatives: `-৳১,২০০`.
+- **`percent`** is `Infinity` when planned = 0 and spent > 0. It sorts first and is `'over'`; the UI must display it specially (e.g. "—"). Sort ties fall back to `sort_order`.
+- **Archived categories:** `buildMonthSummary` receives *all* categories and shows an archived one only if it has planned > 0 or spent > 0 that month. Pickers and the plan screen should use `categories.listActive`.
+- **`months.getPrevious`** returns the most recent *existing* earlier month, not strictly the previous calendar month. **`budgets.copyFromMonth`** overwrites the target's amounts and skips archived categories.
+- **Expense notes:** an empty or whitespace-only note is stored as `NULL`.
+- **Navigation:** `settings` is reached through a "সেটিংস" header link on the tabs. `expense/new` is presented as a modal.
+
 ## Screens
 
 | Route | Screen | Content |
@@ -149,7 +173,8 @@ saving: ব্যাংক জমা
 
 ## Session roadmap
 
-1. Project setup, DB + migrations + seed, repositories, calc/format/date libs + tests, tab skeleton
+1. ✅ Project setup, DB + migrations + seed, repositories, calc/format/date libs + tests, tab skeleton
+   (The dashboard placeholder has a temporary seeded-category count marked `TODO(session-4): remove`.)
 2. Budget plan screen (incomes, planned amounts, copy from last month)
 3. Add/edit/delete expense
 4. Dashboard with overall + per-category progress bars
