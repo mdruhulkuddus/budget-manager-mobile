@@ -41,6 +41,11 @@ export function today(now: Date = new Date()): string {
   return formatDate(now.getFullYear(), now.getMonth() + 1, now.getDate());
 }
 
+export function addMonths(ym: YearMonth, delta: number): YearMonth {
+  const index = ym.year * 12 + (ym.month - 1) + delta;
+  return { year: Math.floor(index / 12), month: (index % 12) + 1 };
+}
+
 export function currentYearMonth(now: Date = new Date()): YearMonth {
   return { year: now.getFullYear(), month: now.getMonth() + 1 };
 }

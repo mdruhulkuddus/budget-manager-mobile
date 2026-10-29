@@ -1,4 +1,4 @@
-import { currentYearMonth, monthRange, today } from '../src/lib/date';
+import { addMonths, currentYearMonth, monthRange, today } from '../src/lib/date';
 
 describe('monthRange', () => {
   it('February in a leap year', () => {
@@ -38,5 +38,23 @@ describe('today / currentYearMonth', () => {
 
   it('returns the local year and month', () => {
     expect(currentYearMonth(justAfterMidnight)).toEqual({ year: 2026, month: 3 });
+  });
+});
+
+describe('addMonths', () => {
+  it('moves within a year', () => {
+    expect(addMonths({ year: 2026, month: 10 }, 1)).toEqual({ year: 2026, month: 11 });
+  });
+
+  it('rolls over December → January', () => {
+    expect(addMonths({ year: 2026, month: 12 }, 1)).toEqual({ year: 2027, month: 1 });
+  });
+
+  it('rolls back January → December', () => {
+    expect(addMonths({ year: 2026, month: 1 }, -1)).toEqual({ year: 2025, month: 12 });
+  });
+
+  it('handles multi-year deltas', () => {
+    expect(addMonths({ year: 2026, month: 3 }, -27)).toEqual({ year: 2023, month: 12 });
   });
 });

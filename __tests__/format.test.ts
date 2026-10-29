@@ -1,4 +1,4 @@
-import { formatTaka, groupDigits, toBengaliDigits } from '../src/lib/format';
+import { formatTaka, groupDigits, parseTaka, toBengaliDigits } from '../src/lib/format';
 
 describe('toBengaliDigits', () => {
   it('maps every ASCII digit', () => {
@@ -47,5 +47,31 @@ describe('formatTaka', () => {
 
   it('does not show -0', () => {
     expect(formatTaka(-0.2)).toBe('৳০');
+  });
+});
+
+describe('parseTaka', () => {
+  it.each([
+    ['50000', 50000],
+    ['৫০০০০', 50000],
+    ['50,000', 50000],
+    ['৳২৮,৫০০', 28500],
+    ['  1 200 ', 1200],
+    ['1২3', 123],
+    ['0', 0],
+    ['007', 7],
+  ])('%p → %p', (input, expected) => {
+    expect(parseTaka(input)).toBe(expected);
+  });
+
+  it.each([[''], ['   '], ['abc'], ['12a'], ['-500'], ['12.5'], ['৳'], ['99999999999999999999']])(
+    'invalid %p → 0',
+    (input) => {
+      expect(parseTaka(input)).toBe(0);
+    },
+  );
+
+  it('round-trips formatTaka', () => {
+    expect(parseTaka(formatTaka(1234567))).toBe(1234567);
   });
 });

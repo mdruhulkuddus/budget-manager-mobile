@@ -6,6 +6,21 @@ export function toBengaliDigits(input: string | number): string {
   return String(input).replace(/[0-9]/g, (d) => BENGALI_DIGITS[Number(d)]);
 }
 
+export function fromBengaliDigits(input: string): string {
+  return input.replace(/[০-৯]/g, (d) => String(BENGALI_DIGITS.indexOf(d)));
+}
+
+/**
+ * Parses user-typed money: ASCII or Bengali digits; commas, spaces and ৳ ignored.
+ * Returns a non-negative integer; anything else (decimals, minus, letters) → 0.
+ */
+export function parseTaka(input: string): number {
+  const cleaned = fromBengaliDigits(input).replace(/[,\s৳]/g, '');
+  if (!/^\d+$/.test(cleaned)) return 0;
+  const n = Number(cleaned);
+  return Number.isSafeInteger(n) ? n : 0;
+}
+
 /**
  * Groups digits the South Asian way: last three, then pairs.
  * 1234567 → "12,34,567"

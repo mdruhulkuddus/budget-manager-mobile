@@ -81,6 +81,36 @@ function sumBy<T>(items: T[], pick: (item: T) => number): number {
   return items.reduce((acc, item) => acc + pick(item), 0);
 }
 
+export interface PlanSummaryInput {
+  /** Only budgets of these categories are counted (the plan screen passes active ones). */
+  categories: Pick<CalcCategory, 'id' | 'type'>[];
+  budgets: PlannedInput[];
+  incomes: IncomeInput[];
+}
+
+export interface PlanSummary {
+  income: number;
+  plannedExpense: number;
+  plannedSaving: number;
+  /** income − planned expense − planned saving; negative = planned more than income. */
+  unplanned: number;
+  isOverPlanned: boolean;
+}
+
+export function planSummary(input: PlanSummaryInput): PlanSummary {
+  const typeById = new Map(input.categories.map((c) => [c.id, c.type]));
+  let plannedExpense = 0;
+  let plannedSaving = 0;
+  for (const b of input.budgets) {
+    const type = typeById.get(b.categoryId);
+    if (type === 'expense') plannedExpense += b.plannedAmount;
+    else if (type === 'saving') plannedSaving += b.plannedAmount;
+  }
+  const income = sumBy(input.incomes, (i) => i.amount);
+  const unplanned = income - plannedExpense - plannedSaving;
+  return { income, plannedExpense, plannedSaving, unplanned, isOverPlanned: unplanned < 0 };
+}
+
 export function buildMonthSummary(input: MonthSummaryInput): MonthSummary {
   const plannedById = new Map<number, number>();
   for (const b of input.budgets) plannedById.set(b.categoryId, b.plannedAmount);

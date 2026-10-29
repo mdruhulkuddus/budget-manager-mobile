@@ -1,4 +1,4 @@
-import { buildMonthSummary, CalcCategory, MonthSummaryInput, percentOf, statusOf } from '../src/lib/calc';
+import { buildMonthSummary, CalcCategory, MonthSummaryInput, percentOf, planSummary, statusOf } from '../src/lib/calc';
 
 const cat = (id: number, name: string, type: CalcCategory['type'] = 'expense', extra: Partial<CalcCategory> = {}) => ({
   id,
@@ -118,5 +118,56 @@ describe('status thresholds', () => {
   it('is ok at exactly 80% and warn at exactly 100% of a plan', () => {
     expect(statusOf(percentOf(800, 1000))).toBe('ok');
     expect(statusOf(percentOf(1000, 1000))).toBe('warn');
+  });
+});
+
+describe('planSummary', () => {
+  const planCats = [
+    { id: 1, type: 'expense' as const },
+    { id: 2, type: 'expense' as const },
+    { id: 10, type: 'saving' as const },
+  ];
+
+  it('matches the phone-check scenario (income 50000, rent 20000, groceries 6000, bank 10000)', () => {
+    const s = planSummary({
+      categories: planCats,
+      budgets: [
+        { categoryId: 1, plannedAmount: 20000 },
+        { categoryId: 2, plannedAmount: 6000 },
+        { categoryId: 10, plannedAmount: 10000 },
+      ],
+      incomes: [{ amount: 50000 }],
+    });
+    expect(s).toEqual({ income: 50000, plannedExpense: 26000, plannedSaving: 10000, unplanned: 14000, isOverPlanned: false });
+  });
+
+  it('flags a plan larger than income', () => {
+    const s = planSummary({ categories: planCats, budgets: [{ categoryId: 1, plannedAmount: 60000 }], incomes: [{ amount: 50000 }] });
+    expect(s.unplanned).toBe(-10000);
+    expect(s.isOverPlanned).toBe(true);
+  });
+
+  it('is not over-planned when exactly balanced', () => {
+    const s = planSummary({ categories: planCats, budgets: [{ categoryId: 10, plannedAmount: 500 }], incomes: [{ amount: 500 }] });
+    expect(s).toMatchObject({ unplanned: 0, isOverPlanned: false });
+  });
+
+  it('sums multiple incomes', () => {
+    expect(planSummary({ categories: planCats, budgets: [], incomes: [{ amount: 1 }, { amount: 2 }] }).income).toBe(3);
+  });
+
+  it('ignores budgets of categories not passed in (e.g. archived)', () => {
+    const s = planSummary({ categories: planCats, budgets: [{ categoryId: 99, plannedAmount: 7000 }], incomes: [] });
+    expect(s).toMatchObject({ plannedExpense: 0, plannedSaving: 0, unplanned: 0 });
+  });
+
+  it('handles an empty plan', () => {
+    expect(planSummary({ categories: [], budgets: [], incomes: [] })).toEqual({
+      income: 0,
+      plannedExpense: 0,
+      plannedSaving: 0,
+      unplanned: 0,
+      isOverPlanned: false,
+    });
   });
 });
