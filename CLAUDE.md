@@ -29,6 +29,7 @@ Keep it minimal. Do not add features that are not listed here.
 - expo-sqlite (async API, `SQLiteProvider` + `useSQLiteContext`)
 - Plain `StyleSheet` — no UI library, no chart library, no icon library (tab bar is labels only)
 - Jest (`jest-expo`) for unit tests of pure logic
+- `@react-native-community/datetimepicker`: date picker for expenses (approved in session 3). Use the imperative `DateTimePickerAndroid.open()`.
 - Build: EAS Build, `preview` profile → installable APK
 
 Do NOT add: Redux/Zustand, TanStack Query, UI kits, chart libs, ORMs, auth, network calls.
@@ -128,7 +129,14 @@ Rules:
 - **Copy from last month:** the source is `months.getPreviousWithPlan` (most recent earlier month *with a plan*, skipping empty ones). `months.copyPlanFromMonth` runs `budgets.copyFromMonth` + `incomes.copyFromMonth` in one exclusive transaction. Both *replace* the target's data. Budget rows of archived categories are neither copied nor deleted.
 - **Plan screen totals** (`planSummary`) count only active categories, matching the visible rows. Amounts commit on blur and skip the write if unchanged. `parseTaka` turns invalid input (decimals, minus, letters) into 0.
 - **Keyboard:** `KeyboardAvoidingView` isn't used: Android edge-to-edge (mandatory since SDK 54) makes it unreliable. Scroll screens with inputs use `src/components/useKeyboardAwareScroll.ts` (bottom padding = keyboard height + scroll the focused input into view). They keep the default `keyboardShouldPersistTaps`, so the first tap outside an input only dismisses the keyboard. That commits the input before any button acts.
-- **RN 0.88 types:** components are function types. Use `ScrollViewInstance` / `TextInputInstance` for refs, not `ScrollView` / `TextInput`.
+- **RN 0.88 types:** components are function types. Use `ScrollViewInstance` / `TextInputInstance` / `ViewInstance` for refs, not `ScrollView` / `TextInput` / `View`.
+- **Expense form** (`src/components/ExpenseForm.tsx`, used by `expense/new` and `expense/[id]`):
+  - The save buttons sit in a footer lifted by `useKeyboardInset`, which measures the real keyboard overlap rather than assuming the window does or doesn't resize.
+  - The live preview reads the chosen date's month via `budgets.listByYearMonth` (doesn't create the month row). `months.getOrCreate` runs only on save.
+  - In edit mode `amountToExclude` removes the original amount from "spent", but only while the category and month are unchanged.
+  - "সেভ করে আরেকটা" exists only in add mode. The edit screen has ডিলিট instead.
+  - An archived category is shown in the edit form only if it is the expense's own.
+- **Shared UI helpers:** `showError` (Alert for unexpected DB errors; validation stays inline) and `dateLabel` (আজ / গতকাল / "২৫ অক্টোবর") in `src/components/`.
 - **Expense notes:** an empty or whitespace-only note is stored as `NULL`.
 - **Navigation:** `settings` is reached through a "সেটিংস" header link on the tabs. `expense/new` is presented as a modal.
 
@@ -178,9 +186,9 @@ saving: ব্যাংক জমা
 ## Session roadmap
 
 1. ✅ Project setup, DB + migrations + seed, repositories, calc/format/date libs + tests, tab skeleton
-   (The dashboard placeholder has a temporary seeded-category count marked `TODO(session-4): remove`.)
 2. ✅ Budget plan screen (incomes, planned amounts, copy from last month)
-3. Add/edit/delete expense
+3. ✅ Add/edit/delete expense
+   (The dashboard currently shows only a temporary "সাম্প্রতিক খরচ" list + FAB, marked `TODO(session-4)`.)
 4. Dashboard with overall + per-category progress bars
 5. Month list + month report
 6. Settings: category management + JSON backup/restore; EAS APK build

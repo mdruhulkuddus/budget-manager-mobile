@@ -18,6 +18,7 @@ export default function RootLayout() {
         }}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="expense/new" options={{ title: bn.screens.newExpense, presentation: 'modal' }} />
+        <Stack.Screen name="expense/[id]" options={{ title: bn.screens.editExpense }} />
         <Stack.Screen name="month/[id]" options={{ title: bn.screens.monthReport }} />
         <Stack.Screen name="settings" options={{ title: bn.screens.settings }} />
       </Stack>

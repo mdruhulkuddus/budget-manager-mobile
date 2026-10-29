@@ -7,6 +7,7 @@ import { AmountInput } from '../../src/components/AmountInput';
 import { IncomeModal } from '../../src/components/IncomeModal';
 import { MonthSwitcher } from '../../src/components/MonthSwitcher';
 import { PlanSummaryStrip } from '../../src/components/PlanSummaryStrip';
+import { showError } from '../../src/components/showError';
 import { useKeyboardAwareScroll } from '../../src/components/useKeyboardAwareScroll';
 import * as budgets from '../../src/db/budgets';
 import * as categories from '../../src/db/categories';
@@ -44,11 +45,6 @@ async function loadPlan(db: SQLiteDatabase, { year, month }: YearMonth): Promise
     incomes: monthIncomes,
     previous,
   };
-}
-
-function showError(e: unknown) {
-  console.error(e);
-  Alert.alert(bn.common.error);
 }
 
 function Section({ title, total, children }: { title: string; total: number; children: ReactNode }) {

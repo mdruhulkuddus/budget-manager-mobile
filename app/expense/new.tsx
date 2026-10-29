@@ -1,6 +1,7 @@
-import { Placeholder } from '../../src/components/Placeholder';
-import { bn } from '../../src/i18n/bn';
+import { router } from 'expo-router';
+
+import { ExpenseForm } from '../../src/components/ExpenseForm';
 
 export default function NewExpenseScreen() {
-  return <Placeholder title={bn.screens.newExpense} />;
+  return <ExpenseForm onDone={() => router.back()} />;
 }
