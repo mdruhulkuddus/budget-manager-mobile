@@ -67,3 +67,19 @@ export async function sumByCategory(db: SQLiteDatabase, from: string, to: string
     to,
   );
 }
+
+export async function getById(db: SQLiteDatabase, id: number): Promise<Expense | null> {
+  return db.getFirstAsync<Expense>(
+    'SELECT id, category_id AS categoryId, amount, date, note, created_at AS createdAt FROM expenses WHERE id = ?',
+    id,
+  );
+}
+
+/** Newest first by date, then by entry order. */
+export async function listRecent(db: SQLiteDatabase, limit: number): Promise<Expense[]> {
+  return db.getAllAsync<Expense>(
+    `SELECT id, category_id AS categoryId, amount, date, note, created_at AS createdAt
+       FROM expenses ORDER BY date DESC, id DESC LIMIT ?`,
+    limit,
+  );
+}
