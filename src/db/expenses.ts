@@ -46,14 +46,16 @@ export async function remove(db: SQLiteDatabase, id: number): Promise<void> {
   await db.runAsync('DELETE FROM expenses WHERE id = ?', id);
 }
 
-/** Inclusive range, newest first. */
-export async function listByDateRange(db: SQLiteDatabase, from: string, to: string): Promise<Expense[]> {
+/** Inclusive range, newest first. Omit `limit` for all. */
+export async function listByDateRange(db: SQLiteDatabase, from: string, to: string, limit?: number): Promise<Expense[]> {
   return db.getAllAsync<Expense>(
     `SELECT id, category_id AS categoryId, amount, date, note, created_at AS createdAt
        FROM expenses WHERE date BETWEEN ? AND ?
-      ORDER BY date DESC, id DESC`,
+      ORDER BY date DESC, id DESC
+      LIMIT ?`,
     from,
     to,
+    limit ?? -1, // SQLite: negative LIMIT = no limit
   );
 }
 
