@@ -81,6 +81,49 @@ function sumBy<T>(items: T[], pick: (item: T) => number): number {
   return items.reduce((acc, item) => acc + pick(item), 0);
 }
 
+export interface CategoryPreviewInput {
+  planned: number;
+  /** Already spent in this category this month, excluding the expense being edited. */
+  spentSoFar: number;
+  /** Amount of the expense being entered (0 if nothing typed yet). */
+  amount: number;
+}
+
+export interface CategoryPreview {
+  hasPlan: boolean;
+  remainingBefore: number;
+  remainingAfter: number;
+  /** How far over the plan this expense takes the category (0 if not over). */
+  overBy: number;
+  /** Status after this expense. */
+  status: Status;
+}
+
+export function categoryPreview({ planned, spentSoFar, amount }: CategoryPreviewInput): CategoryPreview {
+  const remainingAfter = planned - spentSoFar - amount;
+  return {
+    hasPlan: planned > 0,
+    remainingBefore: planned - spentSoFar,
+    remainingAfter,
+    overBy: Math.max(0, -remainingAfter),
+    status: statusOf(percentOf(spentSoFar + amount, planned)),
+  };
+}
+
+/**
+ * In edit mode, the original expense is already inside the month's spent total.
+ * Returns how much to subtract so it isn't counted twice — only when the form still
+ * targets the original's category and month.
+ */
+export function amountToExclude(
+  original: { categoryId: number; date: string; amount: number } | null,
+  categoryId: number,
+  date: string,
+): number {
+  if (!original || original.categoryId !== categoryId) return 0;
+  return original.date.slice(0, 7) === date.slice(0, 7) ? original.amount : 0;
+}
+
 export interface PlanSummaryInput {
   /** Only budgets of these categories are counted (the plan screen passes active ones). */
   categories: Pick<CalcCategory, 'id' | 'type'>[];

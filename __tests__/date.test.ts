@@ -1,4 +1,4 @@
-import { addMonths, currentYearMonth, monthRange, today } from '../src/lib/date';
+import { addDays, addMonths, currentYearMonth, groupByDate, monthRange, today, yearMonthOf } from '../src/lib/date';
 
 describe('monthRange', () => {
   it('February in a leap year', () => {
@@ -56,5 +56,43 @@ describe('addMonths', () => {
 
   it('handles multi-year deltas', () => {
     expect(addMonths({ year: 2026, month: 3 }, -27)).toEqual({ year: 2023, month: 12 });
+  });
+});
+
+describe('addDays', () => {
+  it('goes to yesterday across a month boundary', () => {
+    expect(addDays('2026-03-01', -1)).toBe('2026-02-28');
+  });
+
+  it('crosses a year boundary', () => {
+    expect(addDays('2026-12-31', 1)).toBe('2027-01-01');
+  });
+
+  it('handles leap day', () => {
+    expect(addDays('2024-03-01', -1)).toBe('2024-02-29');
+  });
+});
+
+describe('yearMonthOf', () => {
+  it('extracts year and month', () => {
+    expect(yearMonthOf('2026-09-15')).toEqual({ year: 2026, month: 9 });
+  });
+});
+
+describe('groupByDate', () => {
+  it('groups consecutive items, keeping order', () => {
+    const items = [
+      { id: 3, date: '2026-10-27' },
+      { id: 2, date: '2026-10-27' },
+      { id: 1, date: '2026-10-25' },
+    ];
+    expect(groupByDate(items)).toEqual([
+      { date: '2026-10-27', items: [items[0], items[1]] },
+      { date: '2026-10-25', items: [items[2]] },
+    ]);
+  });
+
+  it('returns no groups for no items', () => {
+    expect(groupByDate([])).toEqual([]);
   });
 });

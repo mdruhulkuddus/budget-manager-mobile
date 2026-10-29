@@ -1,4 +1,13 @@
-import { buildMonthSummary, CalcCategory, MonthSummaryInput, percentOf, planSummary, statusOf } from '../src/lib/calc';
+import {
+  amountToExclude,
+  buildMonthSummary,
+  CalcCategory,
+  categoryPreview,
+  MonthSummaryInput,
+  percentOf,
+  planSummary,
+  statusOf,
+} from '../src/lib/calc';
 
 const cat = (id: number, name: string, type: CalcCategory['type'] = 'expense', extra: Partial<CalcCategory> = {}) => ({
   id,
@@ -169,5 +178,76 @@ describe('planSummary', () => {
       unplanned: 0,
       isOverPlanned: false,
     });
+  });
+});
+
+describe('categoryPreview', () => {
+  it('shows remaining before and after (phone-check numbers)', () => {
+    expect(categoryPreview({ planned: 6000, spentSoFar: 5200, amount: 500 })).toEqual({
+      hasPlan: true,
+      remainingBefore: 800,
+      remainingAfter: 300,
+      overBy: 0,
+      status: 'warn', // 5700 / 6000 = 95%
+    });
+  });
+
+  it('with no amount typed yet, after = before', () => {
+    const p = categoryPreview({ planned: 6000, spentSoFar: 1000, amount: 0 });
+    expect(p).toMatchObject({ remainingBefore: 5000, remainingAfter: 5000, status: 'ok' });
+  });
+
+  it('exactly zero remaining is not over', () => {
+    const p = categoryPreview({ planned: 6000, spentSoFar: 5200, amount: 800 });
+    expect(p).toMatchObject({ remainingAfter: 0, overBy: 0, status: 'warn' });
+  });
+
+  it('overspent reports overBy', () => {
+    const p = categoryPreview({ planned: 6000, spentSoFar: 5200, amount: 1000 });
+    expect(p).toMatchObject({ remainingAfter: -200, overBy: 200, status: 'over' });
+  });
+
+  it('already over before this expense', () => {
+    const p = categoryPreview({ planned: 1000, spentSoFar: 1500, amount: 100 });
+    expect(p).toMatchObject({ remainingBefore: -500, remainingAfter: -600, overBy: 600, status: 'over' });
+  });
+
+  it('no plan: hasPlan false; any spending is over', () => {
+    expect(categoryPreview({ planned: 0, spentSoFar: 0, amount: 0 })).toMatchObject({ hasPlan: false, status: 'ok' });
+    expect(categoryPreview({ planned: 0, spentSoFar: 0, amount: 50 })).toMatchObject({
+      hasPlan: false,
+      overBy: 50,
+      status: 'over',
+    });
+  });
+
+  it('edit mode: excluding the original avoids double-counting', () => {
+    // Month total 5200 already includes the 700 being edited; user changes it to 900.
+    const original = { categoryId: 2, date: '2026-10-05', amount: 700 };
+    const spentSoFar = 5200 - amountToExclude(original, 2, '2026-10-05');
+    expect(categoryPreview({ planned: 6000, spentSoFar, amount: 900 })).toMatchObject({
+      remainingBefore: 1500,
+      remainingAfter: 600,
+    });
+  });
+});
+
+describe('amountToExclude', () => {
+  const original = { categoryId: 2, date: '2026-10-05', amount: 700 };
+
+  it('excludes when category and month match (any day)', () => {
+    expect(amountToExclude(original, 2, '2026-10-31')).toBe(700);
+  });
+
+  it('does not exclude after switching category', () => {
+    expect(amountToExclude(original, 3, '2026-10-05')).toBe(0);
+  });
+
+  it('does not exclude after moving to another month', () => {
+    expect(amountToExclude(original, 2, '2026-11-01')).toBe(0);
+  });
+
+  it('does not exclude in add mode', () => {
+    expect(amountToExclude(null, 2, '2026-10-05')).toBe(0);
   });
 });

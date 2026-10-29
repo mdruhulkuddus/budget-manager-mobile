@@ -37,8 +37,45 @@ export function monthRange(year: number, month: number): DateRange {
   };
 }
 
+/** Local calendar date of a Date object. */
+export function toLocalDate(d: Date): string {
+  return formatDate(d.getFullYear(), d.getMonth() + 1, d.getDate());
+}
+
+/** 'YYYY-MM-DD' → Date at local midnight. */
+export function parseLocalDate(date: string): Date {
+  const [y, m, d] = date.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
 export function today(now: Date = new Date()): string {
-  return formatDate(now.getFullYear(), now.getMonth() + 1, now.getDate());
+  return toLocalDate(now);
+}
+
+export function addDays(date: string, delta: number): string {
+  const d = parseLocalDate(date);
+  d.setDate(d.getDate() + delta);
+  return toLocalDate(d);
+}
+
+export function yearMonthOf(date: string): YearMonth {
+  const [year, month] = date.split('-').map(Number);
+  return { year, month };
+}
+
+export function isSameMonth(a: string, b: string): boolean {
+  return a.slice(0, 7) === b.slice(0, 7);
+}
+
+/** Groups consecutive items by `date`, keeping input order (pass items already sorted). */
+export function groupByDate<T extends { date: string }>(items: T[]): { date: string; items: T[] }[] {
+  const groups: { date: string; items: T[] }[] = [];
+  for (const item of items) {
+    const last = groups[groups.length - 1];
+    if (last && last.date === item.date) last.items.push(item);
+    else groups.push({ date: item.date, items: [item] });
+  }
+  return groups;
 }
 
 export function addMonths(ym: YearMonth, delta: number): YearMonth {
