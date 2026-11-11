@@ -3,7 +3,10 @@
 A personal, offline-only Android app for monthly budget planning and expense tracking.
 It answers one question at a glance: **how much did I spend this month, and in which category?**
 
+- A password cover screen on every app start (password `2026`, set in `src/lib/lock.ts`).
+  It keeps a casual look away. It isn't real security, since the data on the phone isn't encrypted.
 - Plan each month: income and a planned amount per category (copy from last month in one tap).
+  New categories can be added right from the plan screen (**+ নতুন খাত**).
 - Add expenses in a few seconds: amount, category, date, optional note.
 - The dashboard shows spent vs planned per category and overall, with green / yellow / red bars.
 - Every past month has a report: totals, per-category table, and the full expense list.
@@ -13,7 +16,7 @@ All data stays on the phone in SQLite. No account, no internet, no sync. The UI 
 
 ## Run it in Expo Go (development)
 
-Requirements: Node.js 22+, the **Expo Go** app on the phone, phone and PC on the same Wi-Fi.
+Requirements: Node.js 22.13 or newer, the **Expo Go** app on the phone, phone and PC on the same Wi-Fi.
 
 ```sh
 npm install
@@ -21,6 +24,8 @@ npx expo start
 ```
 
 Scan the QR code with Expo Go. If the phone can't connect, use `npx expo start --tunnel`.
+If the app shows old code or odd errors after big changes, restart with `npx expo start --clear`
+and fully close Expo Go before reopening it.
 
 Checks:
 
@@ -38,7 +43,7 @@ The APK is built in the cloud by EAS Build (free account at https://expo.dev).
 ```sh
 npm install -g eas-cli          # once
 eas login                       # once, with your expo.dev account
-eas init                        # once: links the project, adds its id to app.json (commit that change)
+eas init                        # once: links the project (already done: expo.dev account ruhul15)
 eas build -p android --profile preview
 ```
 
