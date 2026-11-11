@@ -22,9 +22,14 @@ export default function TabLayout() {
         headerTintColor: colors.text,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textMuted,
+        // Labels only: an empty icon still reserves a 28dp slot, which pushes the label out of the bar.
+        // 'beside-icon' is the layout that centers the label once that slot is hidden.
         tabBarIcon: () => null,
+        tabBarIconStyle: { display: 'none' },
+        tabBarLabelPosition: 'beside-icon',
         tabBarHideOnKeyboard: true,
-        tabBarLabelStyle: { fontSize: fontSize.md },
+        // Explicit line height so tall Bengali conjuncts aren't clipped.
+        tabBarLabelStyle: { fontSize: fontSize.md, lineHeight: 28, marginStart: 0, marginEnd: 0 },
       }}>
       <Tabs.Screen name="index" options={{ title: bn.tabs.dashboard, headerRight: () => <SettingsLink /> }} />
       <Tabs.Screen name="plan" options={{ title: bn.tabs.plan }} />
