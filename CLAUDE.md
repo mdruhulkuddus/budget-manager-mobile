@@ -168,7 +168,7 @@ Rules:
 | Route | Screen | Content |
 |---|---|---|
 | `(tabs)/index` | Dashboard | Current month: income / expense / saving / in hand. Overall expense progress bar. Per-category bars sorted by % used (desc). FAB "+ খরচ". |
-| `(tabs)/plan` | Budget plan | Income list (add/edit/remove). Planned amount per active category. "Copy from last month" button. |
+| `(tabs)/plan` | Budget plan | Income list (add/edit/remove). Planned amount per active category. "+ নতুন খাত" under each category group (same `CategoryModal` as settings). "Copy from last month" button. |
 | `(tabs)/months` | Month list | All months, newest first, with total spent. Tap → report. |
 | `expense/new` | Add expense | Amount (numeric keypad, autofocus), category picker, date (default today), note. Save in ≤ 5 seconds. |
 | `month/[id]` | Report | Totals, per-category planned vs spent vs remaining (overspent in red), expense list grouped by date with edit/delete. |

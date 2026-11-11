@@ -39,6 +39,7 @@ export const bn = {
   plan: {
     income: 'ইনকাম',
     addIncome: '+ ইনকাম যোগ',
+    addCategory: '+ নতুন খাত',
     noIncome: 'এখনো কোনো ইনকাম যোগ করা হয়নি',
     expenseGroup: 'খরচের খাত',
     savingGroup: 'সঞ্চয়',

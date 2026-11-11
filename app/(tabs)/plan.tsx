@@ -4,6 +4,7 @@ import { type ReactNode, useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Keyboard, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { AmountInput } from '../../src/components/AmountInput';
+import { CategoryModal } from '../../src/components/CategoryModal';
 import { IncomeModal } from '../../src/components/IncomeModal';
 import { MonthSwitcher } from '../../src/components/MonthSwitcher';
 import { PlanSummaryStrip } from '../../src/components/PlanSummaryStrip';
@@ -28,7 +29,11 @@ interface PlanData {
   previous: months.Month | null;
 }
 
-type ModalState = { kind: 'add' } | { kind: 'edit'; income: incomes.Income } | null;
+type ModalState =
+  | { kind: 'add' }
+  | { kind: 'edit'; income: incomes.Income }
+  | { kind: 'addCategory'; type: categories.Category['type'] }
+  | null;
 
 async function loadPlan(db: SQLiteDatabase, { year, month }: YearMonth): Promise<PlanData> {
   const m = await months.getOrCreate(db, year, month);
@@ -131,6 +136,11 @@ export default function PlanScreen() {
     incomes.remove(db, id).then(reload).catch(showError);
   };
 
+  const saveCategory = (input: { name: string; type: categories.Category['type'] }) => {
+    setModal(null);
+    categories.create(db, input).then(reload).catch(showError);
+  };
+
   const copyFromPrevious = async () => {
     const previous = data.previous;
     if (!previous) return;
@@ -165,6 +175,12 @@ export default function PlanScreen() {
         </View>
       ));
 
+  const renderAddCategory = (type: categories.Category['type']) => (
+    <Pressable style={styles.addButton} onPress={() => setModal({ kind: 'addCategory', type })}>
+      <Text style={styles.addText}>{bn.plan.addCategory}</Text>
+    </Pressable>
+  );
+
   return (
     <View style={styles.screen}>
       <View style={styles.sticky}>
@@ -198,14 +214,26 @@ export default function PlanScreen() {
 
         <Section title={bn.plan.expenseGroup} total={summary.plannedExpense}>
           {renderCategoryRows('expense')}
+          {renderAddCategory('expense')}
         </Section>
 
         <Section title={bn.plan.savingGroup} total={summary.plannedSaving}>
           {renderCategoryRows('saving')}
+          {renderAddCategory('saving')}
         </Section>
       </ScrollView>
 
-      {modal && (
+      {modal?.kind === 'addCategory' && (
+        <CategoryModal
+          key={modal.type}
+          defaultType={modal.type}
+          existing={data.categories}
+          onSave={saveCategory}
+          onClose={() => setModal(null)}
+        />
+      )}
+
+      {modal && modal.kind !== 'addCategory' && (
         <IncomeModal
           key={modal.kind === 'edit' ? modal.income.id : 'new'}
           initial={modal.kind === 'edit' ? modal.income : undefined}
