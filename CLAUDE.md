@@ -33,7 +33,7 @@ Keep it minimal. Do not add features that are not listed here.
 - `expo-file-system` (new `File` / `Paths` API), `expo-sharing`, `expo-document-picker`: backup/restore (approved in session 6). `expo-constants` (already part of Expo) gives the app version.
 - Build: EAS Build, `preview` profile → installable APK
 
-Do NOT add: Redux/Zustand, TanStack Query, UI kits, chart libs, ORMs, auth, network calls.
+Do NOT add: Redux/Zustand, TanStack Query, UI kits, chart libs, ORMs, auth (beyond the cover lock below), network calls.
 Ask before adding any dependency not listed above. When adding one, use `npx expo install <pkg>` (picks SDK-compatible versions), never plain `npm install`.
 
 SDK 58 is newer than most training data — check the installed type definitions in `node_modules` (or the docs at `https://docs.expo.dev/versions/v58.0.0/`) instead of assuming an API from memory.
@@ -161,6 +161,8 @@ Rules:
   - Restore (`replaceAll`) deletes and re-inserts every table with the original ids in one exclusive transaction.
   - `schemaVersion` ≤ `SCHEMA_VERSION` is accepted. If a future migration changes these tables, `parseBackup` must upgrade older files.
   - `last_backup_at` is a local timestamp with offset (`localTimestamp()`). It's written when the share sheet closes, because Android doesn't report whether the file was saved. It shows red when never set or older than 30 days.
+- **Cover lock** (owner request): `App` in `app/_layout.tsx` renders `LockScreen` *instead of* the `Stack` on every cold start, until the password (`2026`, in `src/lib/lock.ts`; ASCII or Bengali digits) is entered. The navigator mounts only after unlocking, so it starts on the dashboard. Unlock state is in memory only; returning from the background does not re-lock. It's a cover, not security: the password ships in the app and the DB isn't encrypted.
+- **`SQLiteProvider` ignores its children when re-rendering:** expo-sqlite wraps it in `memo` with a comparator that skips `children`. State that changes what's rendered must live in a component *inside* the provider, never in `RootLayout` above it. That's why the lock state lives in `App`; keeping it in `RootLayout` left the lock screen stuck after a correct password.
 - **Navigation:** `settings` is reached through a ⚙ text glyph in the dashboard header (no icon library). `expense/new` is presented as a modal.
 
 ## Screens

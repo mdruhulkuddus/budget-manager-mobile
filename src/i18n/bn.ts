@@ -138,6 +138,11 @@ export const bn = {
     noPlan: 'প্ল্যান নেই',
     done: '✓',
   },
+  lock: {
+    prompt: 'পাসওয়ার্ড দিন',
+    open: 'খুলুন',
+    wrong: 'ভুল পাসওয়ার্ড, আবার চেষ্টা করুন',
+  },
   settings: {
     categories: 'খাত',
     expenseGroup: 'খরচের খাত',
